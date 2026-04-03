@@ -1,26 +1,30 @@
-name: TaotaoDesk 纯局域网终极版
+name: TaotaoDesk 最终版 ✅ 子模块全开 + 无magnum报错
 on:
   workflow_dispatch:
 
 jobs:
-  # Windows 构建（无依赖、无子模块、无报错）
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
+      # 必开：拉取所有子模块 libs/scrap + libs/hbb_common
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: 纯净编译（无依赖、纯局域网）
-        run: cargo build --release --bin rustdesk --no-default-features
+      # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖，纯局域网编译
+      - name: 编译 Windows
+        run: cargo build --release --no-default-features --features "core,network,desktop"
 
-      - name: 重命名为 taotaodesk.exe
+      - name: 重命名 → taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
 
-      - name: 数字签名 CN=TaotaoDesk
+      - name: 签名 → CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk"
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
@@ -31,19 +35,26 @@ jobs:
           name: taotaodesk-windows
           path: target/release/taotaodesk.exe
 
-  # macOS 构建（无依赖、无报错、原生运行）
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
+      # 必开：拉取所有子模块 libs/scrap + libs/hbb_common
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 纯净编译（无依赖、纯局域网）
-        run: cargo build --release --bin rustdesk --no-default-features
+      - name: 安装基础工具（仅cmake，无音频依赖）
+        run: brew install cmake pkg-config
 
-      - name: 重命名
+      # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖
+      - name: 编译 macOS
+        run: cargo build --release --no-default-features --features "core,network,desktop"
+
+      - name: 重命名 → taotaodesk
         run: mv target/release/rustdesk target/release/taotaodesk
 
       - name: 签名
