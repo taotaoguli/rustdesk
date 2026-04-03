@@ -1,10 +1,10 @@
-name: TaotaoDesk 终极纯净版
+name: TaotaoDesk 局域网直连版 ✅ Win+Mac互联
 on:
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -13,43 +13,43 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      # 🔥 终极：禁用所有音视频、UI、第三方依赖，纯核心
-      - name: 编译纯净版
-        run: cargo build --release --bins --features "cli" --no-default-features
+      # 🔥 核心：禁用所有报错依赖，只保留局域网远程功能
+      - name: 编译核心程序
+        run: cargo build --release --no-default-features --features "rustdesk_libs"
 
-      - name: 改名 taotaodesk.exe
+      - name: 重命名为 taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
 
-      - name: 签名 CN=TaotaoDesk
+      - name: 数字签名 CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk"
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
 
-      - name: 上传成品
+      - name: 上传 Windows 成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
           path: target/release/taotaodesk.exe
 
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 🔥 无依赖、无音视频、无报错
-      - name: 编译纯净版
-        run: cargo build --release --bins --features "cli" --no-default-features
+      # 🔥 无依赖、无报错、纯局域网远程
+      - name: 编译核心程序
+        run: cargo build --release --no-default-features --features "rustdesk_libs"
 
-      - name: 改名
+      - name: 重命名
         run: mv target/release/rustdesk target/release/taotaodesk
 
       - name: 签名
         run: codesign -s "-" --force --deep target/release/taotaodesk
 
-      - name: 上传成品
+      - name: 上传 macOS 成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
