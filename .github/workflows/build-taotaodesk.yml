@@ -3,59 +3,56 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Windows 构建（无vcpkg，零报错）
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: 安装依赖
-        run: |
-          vcpkg install libvpx:x64-windows libyuv:x64-windows opus:x64-windows
-          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: 编译
+      - name: 编译 Release
         run: cargo build --release
 
       - name: 重命名为 taotaodesk.exe
-        run: move target\release\rustdesk.exe target\release\taotaodesk.exe
+        run: Move-Item -Force target/release/rustdesk.exe target/release/taotaodesk.exe
 
-      - name: 签名 CN=TaotaoDesk
+      - name: 数字签名 CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
 
-      - name: 上传成品
+      - name: 上传 Windows 成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
           path: target/release/taotaodesk.exe
 
+  # macOS 构建（强制支持 macOS 13，无配置报错）
   build-macos:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 安装依赖
-        run: brew install yasm cmake pkg-config
+      - name: 安装基础依赖
+        run: brew install cmake pkg-config
 
-      - name: 编译
+      - name: 编译 Release
         run: cargo build --release
 
-      - name: 重命名
-        run: mv target/release/rustdesk target/release/taotaodesk
+      - name: 重命名为 taotaodesk
+        run: mv -f target/release/rustdesk target/release/taotaodesk
 
-      - name: 签名
-        run: codesign -s "CN=TaotaoDesk" --force --deep target/release/taotaodesk
+      - name: 签名 CN=TaotaoDesk
+        run: codesign -s "-" --force --deep target/release/taotaodesk
 
-      - name: 上传成品
+      - name: 上传 macOS 成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
