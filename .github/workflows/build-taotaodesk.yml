@@ -1,0 +1,80 @@
+name: Build TaotaoDesk (LAN Only)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+
+      - name: Install Rust & Flutter
+        uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "3.19.0" }
+
+      - name: 改名 → taotaodesk
+        run: |
+          $file = "flutter/windows/runner/Runner.rc"
+          (gc $file) -replace "RustDesk","TaotaoDesk" | sc $file
+          (gc $file) -replace "rustdesk","taotaodesk" | sc $file
+
+      - name: 清空所有远程服务器
+        run: |
+          $file = "libs/hbb_common/src/config.rs"
+          (gc $file) -replace 'RENDEZVOUS_SERVERS:.*=.*&\[.*\]','RENDEZVOUS_SERVERS: &[&str] = &[]' | sc $file
+          (gc $file) -replace 'RELAY_SERVERS:.*=.*&\[.*\]','RELAY_SERVERS: &[&str] = &[]' | sc $file
+          (gc $file) -replace 'API_SERVER:.*=.*".*"','API_SERVER: &str = ""' | sc $file
+          (gc $file) -replace 'RS_PUB_KEY:.*=.*".*"','RS_PUB_KEY: &str = ""' | sc $file
+
+      - name: 编译
+        run: |
+          flutter pub get
+          cargo build --release --features with_flutter
+          flutter build windows --release
+
+      - name: 签名 taotaodesk.exe
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
+          signtool sign /sha1 $cert.Thumbprint build/windows/runner/Release/taotaodesk.exe
+
+      - uses: actions/upload-artifact@v4
+        with: { name: taotaodesk-windows, path: build/windows/runner/Release }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+
+      - name: Install Rust & Flutter
+        uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "3.19.0" }
+
+      - name: 改名 → taotaodesk
+        run: |
+          sed -i '' 's/RustDesk/TaotaoDesk/g' flutter/macos/Runner/Info.plist
+          sed -i '' 's/rustdesk/taotaodesk/g' flutter/macos/Runner/Info.plist
+
+      - name: 清空服务器
+        run: |
+          sed -i '' 's/RENDEZVOUS_SERVERS:.*/RENDEZVOUS_SERVERS: &[&str] = &[];/' libs/hbb_common/src/config.rs
+          sed -i '' 's/RELAY_SERVERS:.*/RELAY_SERVERS: &[&str] = &[];/' libs/hbb_common/src/config.rs
+          sed -i '' 's/API_SERVER:.*/API_SERVER: &str = "";/' libs/hbb_common/src/config.rs
+          sed -i '' 's/RS_PUB_KEY:.*/RS_PUB_KEY: &str = "";/' libs/hbb_common/src/config.rs
+
+      - name: 编译
+        run: |
+          flutter pub get
+          cargo build --release --features with_flutter
+          flutter build macos --release
+
+      - name: 签名
+        run: |
+          codesign --force --deep --sign - build/macos/Build/Products/Release/TaotaoDesk.app
+
+      - uses: actions/upload-artifact@v4
+        with: { name: taotaodesk-macos, path: build/macos/Build/Products/Release }
