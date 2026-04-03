@@ -19,7 +19,7 @@ jobs:
 
       # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖，纯局域网编译
       - name: 编译 Windows
-        run: cargo build --release --no-default-features --features "core,network,desktop"
+        run: cargo build --release --features "cli"
 
       - name: 重命名 → taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
@@ -52,7 +52,7 @@ jobs:
 
       # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖
       - name: 编译 macOS
-        run: cargo build --release --no-default-features --features "core,network,desktop"
+        run: cargo build --release --features "cli"
 
       - name: 重命名 → taotaodesk
         run: mv target/release/rustdesk target/release/taotaodesk
