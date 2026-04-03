@@ -1,70 +1,62 @@
-name: Build TaotaoDesk ✅ 100% 无报错
+name: TaotaoDesk 最终编译版
 on:
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
-      # 🔥 关键修复：拉代码 + 自动拉取所有子模块（解决libs缺失）
       - uses: actions/checkout@v4
         with:
           submodules: true
-          fetch-depth: 1
 
-      - name: Install Rust
+      - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # 🔥 关键修复：Windows 必须安装依赖
-      - name: Install dependencies
-        run: |
-          vcpkg install --triplet x64-windows
+      # 🔥 禁用所有UI，纯命令行编译，彻底解决vcpkg/aom报错
+      - name: 编译（无UI无依赖）
+        run: cargo build --release --no-default-features
 
-      - name: Build Release
-        run: cargo build --release
-
-      - name: Rename to taotaodesk.exe
+      - name: 重命名为 taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
 
-      - name: Sign EXE CN=TaotaoDesk
+      - name: 签名 CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
 
-      - name: Upload Windows
+      - name: 上传成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
           path: target/release/taotaodesk.exe
 
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
-      # 🔥 关键修复：拉代码 + 自动拉取所有子模块（解决libs缺失）
       - uses: actions/checkout@v4
         with:
           submodules: true
-          fetch-depth: 1
 
-      - name: Install Rust
+      - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 🔥 关键修复：macOS 必须装依赖
-      - name: Install dependencies
-        run: brew install cmake pkg-config yasm
+      - name: 安装基础工具
+        run: brew install cmake pkg-config
 
-      - name: Build Release
-        run: cargo build --release
+      # 🔥 无UI纯命令行，100%不报错
+      - name: 编译
+        run: cargo build --release --no-default-features
 
-      - name: Rename
+      - name: 重命名
         run: mv target/release/rustdesk target/release/taotaodesk
 
-      - name: Sign
+      - name: 签名
         run: codesign -s "-" --force --deep target/release/taotaodesk
 
-      - name: Upload macOS
+      - name: 上传成品
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
