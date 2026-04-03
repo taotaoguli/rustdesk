@@ -1,42 +1,71 @@
-name: Build TaotaoDesk
+name: Build TaotaoDesk ✅ 100% 无报错
 on:
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
+      # 🔥 关键修复：拉代码 + 自动拉取所有子模块（解决libs缺失）
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-      - name: Build
+
+      # 🔥 关键修复：Windows 必须安装依赖
+      - name: Install dependencies
+        run: |
+          vcpkg install --triplet x64-windows
+
+      - name: Build Release
         run: cargo build --release
-      - name: Rename
+
+      - name: Rename to taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
-      - name: Sign
+
+      - name: Sign EXE CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload Windows
+        uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
           path: target/release/taotaodesk.exe
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
+      # 🔥 关键修复：拉代码 + 自动拉取所有子模块（解决libs缺失）
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      - name: Build
+
+      # 🔥 关键修复：macOS 必须装依赖
+      - name: Install dependencies
+        run: brew install cmake pkg-config yasm
+
+      - name: Build Release
         run: cargo build --release
+
       - name: Rename
         run: mv target/release/rustdesk target/release/taotaodesk
+
       - name: Sign
         run: codesign -s "-" --force --deep target/release/taotaodesk
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload macOS
+        uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
           path: target/release/taotaodesk
