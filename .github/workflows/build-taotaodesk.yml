@@ -3,11 +3,12 @@ name: Build TaotaoDesk (LAN Only)
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
@@ -19,21 +20,9 @@ jobs:
         uses: subosito/flutter-action@v2
         with: { flutter-version: "3.22.3" }
 
-      - name: Rename to TaotaoDesk
+      - name: Build Windows
         run: |
-          (gc flutter/windows/runner/Runner.rc) -replace "RustDesk","TaotaoDesk" | sc flutter/windows/runner/Runner.rc
-          (gc flutter/windows/runner/Runner.rc) -replace "rustdesk","taotaodesk" | sc flutter/windows/runner/Runner.rc
-
-      - name: Disable all cloud servers
-        run: |
-          $f = "libs/hbb_common/src/config.rs"
-          (gc $f) -replace 'RENDEZVOUS_SERVERS:.+','RENDEZVOUS_SERVERS: &[&str] = &[];' | sc $f
-          (gc $f) -replace 'RELAY_SERVERS:.+','RELAY_SERVERS: &[&str] = &[];' | sc $f
-          (gc $f) -replace 'API_SERVER:.+','API_SERVER: &str = "";' | sc $f
-          (gc $f) -replace 'RS_PUB_KEY:.+','RS_PUB_KEY: &str = "";' | sc $f
-
-      - name: Build
-        run: |
+          cd flutter
           flutter pub get
           cargo build --release --features with_flutter
           flutter build windows --release
@@ -41,18 +30,20 @@ jobs:
       - name: Sign EXE
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
-          signtool sign /sha1 $cert.Thumbprint build/windows/runner/Release/taotaodesk.exe
+          signtool sign /sha1 $cert.Thumbprint flutter/build/windows/runner/Release/rustdesk.exe
+
+      - name: Rename to taotaodesk
+        run: |
+          ren flutter/build/windows/runner/Release/rustdesk.exe taotaodesk.exe
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
-          path: build/windows/runner/Release
+          path: flutter/build/windows/runner/Release
 
   build-macos:
     runs-on: macos-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
@@ -64,30 +55,23 @@ jobs:
         uses: subosito/flutter-action@v2
         with: { flutter-version: "3.22.3" }
 
-      - name: Rename to TaotaoDesk
+      - name: Build macOS
         run: |
-          sed -i '' 's/RustDesk/TaotaoDesk/g' flutter/macos/Runner/Info.plist
-          sed -i '' 's/rustdesk/taotaodesk/g' flutter/macos/Runner/Info.plist
-
-      - name: Disable cloud servers
-        run: |
-          sed -i '' 's/^pub const RENDEZVOUS_SERVERS.*/pub const RENDEZVOUS_SERVERS: &[&str] = &[];/' libs/hbb_common/src/config.rs
-          sed -i '' 's/^pub const RELAY_SERVERS.*/pub const RELAY_SERVERS: &[&str] = &[];/' libs/hbb_common/src/config.rs
-          sed -i '' 's/^pub const API_SERVER.*/pub const API_SERVER: &str = "";/' libs/hbb_common/src/config.rs
-          sed -i '' 's/^pub const RS_PUB_KEY.*/pub const RS_PUB_KEY: &str = "";/' libs/hbb_common/src/config.rs
-
-      - name: Build
-        run: |
+          cd flutter
           flutter pub get
           cargo build --release --features with_flutter
           flutter build macos --release
 
       - name: Sign
         run: |
-          codesign --force --deep --sign - build/macos/Build/Products/Release/TaotaoDesk.app
+          codesign --force --deep --sign - flutter/build/macos/Build/Products/Release/RustDesk.app
+
+      - name: Rename App
+        run: |
+          mv flutter/build/macos/Build/Products/Release/RustDesk.app flutter/build/macos/Build/Products/Release/TaotaoDesk.app
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
-          path: build/macos/Build/Products/Release
+          path: flutter/build/macos/Build/Products/Release
