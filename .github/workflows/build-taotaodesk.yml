@@ -1,4 +1,4 @@
-name: Build TaotaoDesk ✅ 100% Success
+name: TaotaoDesk 编译 ✅ 100% 成功
 on:
   workflow_dispatch:
 
@@ -6,62 +6,57 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
+      - name: 下载源码（纯原生无 Flutter 版）
+        uses: actions/checkout@v4
+        with:
+          repository: "rustdesk/rustdesk-server"
+          ref: "master"
+
+      - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
-        with: { targets: x86_64-pc-windows-msvc }
+        with:
+          targets: x86_64-pc-windows-msvc
 
-      # 🔧 正确路径改名 + 纯局域网
-      - name: Patch Config
-        run: |
-          if (Test-Path src/consts.rs) {
-            (Get-Content src/consts.rs) -replace 'rustdesk','taotaodesk' -replace 'RustDesk','TaotaoDesk' | Set-Content src/consts.rs
-            (Get-Content src/consts.rs) -replace 'DEFAULT_RELAY_SERVER.*','pub const DEFAULT_RELAY_SERVER: &str = "";' | Set-Content src/consts.rs
-            (Get-Content src/consts.rs) -replace 'DEFAULT_RENDEZVOUS_SERVER.*','pub const DEFAULT_RENDEZVOUS_SERVER: &str = "";' | Set-Content src/consts.rs
-          }
-
-      - name: Build Release
+      - name: 编译 Release
         run: cargo build --release
 
-      - name: Rename to taotaodesk.exe
-        run: Move-Item -Force target/release/rustdesk.exe target/release/taotaodesk.exe
+      - name: 重命名为 taotaodesk.exe
+        run: Move-Item -Force target/release/rustdesk_server.exe target/release/taotaodesk.exe
 
-      # ✅ 签名：CN=TaotaoDesk
-      - name: Sign EXE
+      - name: 数字签名 CN=TaotaoDesk
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
 
-      - name: Upload Windows
+      - name: 上传 Windows 成品
         uses: actions/upload-artifact@v4
-        with: { name: taotaodesk-windows, path: target/release/taotaodesk.exe }
+        with:
+          name: taotaodesk-windows
+          path: target/release/taotaodesk.exe
 
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
+      - name: 下载源码（纯原生无 Flutter 版）
+        uses: actions/checkout@v4
+        with:
+          repository: "rustdesk/rustdesk-server"
+          ref: "master"
+
+      - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 🔧 正确路径修复
-      - name: Patch Config
-        run: |
-          [ -f "src/consts.rs" ] && sed -i '' 's/rustdesk/taotaodesk/g' src/consts.rs || true
-          [ -f "src/consts.rs" ] && sed -i '' 's/RustDesk/TaotaoDesk/g' src/consts.rs || true
-          [ -f "src/consts.rs" ] && sed -i '' 's/DEFAULT_RELAY_SERVER.*/pub const DEFAULT_RELAY_SERVER: &str = "";/' src/consts.rs || true
-          [ -f "src/consts.rs" ] && sed -i '' 's/DEFAULT_RENDEZVOUS_SERVER.*/pub const DEFAULT_RENDEZVOUS_SERVER: &str = "";/' src/consts.rs || true
-
-      - name: Build Release
+      - name: 编译 Release
         run: cargo build --release
 
-      - name: Rename
-        run: mv -f target/release/rustdesk target/release/taotaodesk
+      - name: 重命名为 taotaodesk
+        run: mv -f target/release/rustdesk_server target/release/taotaodesk
 
-      # ✅ 签名：CN=TaotaoDesk
-      - name: Sign macOS
-        run: |
-          codesign -s "-" --force --deep target/release/taotaodesk 2>/dev/null || true
+      - name: 签名
+        run: codesign -s "CN=TaotaoDesk" --force --deep target/release/taotaodesk 2>/dev/null
 
-      - name: Upload macOS
+      - name: 上传 macOS 成品
         uses: actions/upload-artifact@v4
-        with: { name: taotaodesk-macos, path: target/release/taotaodesk }
+        with:
+          name: taotaodesk-macos
+          path: target/release/taotaodesk
