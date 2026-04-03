@@ -16,6 +16,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+          
+       # 自动安装 vcpkg + opus + magnum 依赖
+      - name: Install Windows Dependencies (Opus + Magnum)
+        run: |
+          git clone https://github.com/microsoft/vcpkg C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+          C:\vcpkg\vcpkg install opus:x64-windows
+          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖，纯局域网编译
       - name: 编译 Windows
@@ -47,12 +55,15 @@ jobs:
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 安装基础工具（仅cmake，无音频依赖）
-        run: brew install cmake pkg-config
+      # 自动安装 opus + magnum 依赖
+      - name: Install macOS Dependencies (Opus + Magnum)
+        run: |
+          brew update
+          brew install cmake pkg-config opus
 
-      # ✅ 核心：禁用音频/opus/magnum，不破坏libs依赖
+
       - name: 编译 macOS
-        run: cargo build --release --features "cli"
+        run: cargo build --release 
 
       - name: 重命名 → taotaodesk
         run: mv target/release/rustdesk target/release/taotaodesk
