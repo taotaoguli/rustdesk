@@ -1,62 +1,34 @@
-name: Build TaotaoDesk (GUI 正常)
+name: Build TaotaoDesk (GUI)
 
+# 关键：必须单独写 on: workflow_dispatch:
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # 就这两行，别加空格、别写错
 
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with: submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: subosito/flutter-action@v2
-        with: { flutter-version: "3.22.3" }
+        with:
+          submodules: recursive
 
-      - name: 编译
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.3"
+
+      - name: Build Flutter
         run: |
           cd flutter
           flutter pub get
           flutter build windows --release
 
-      - name: 签名
+      - name: Rename to taotaodesk.exe
         run: |
-          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
-          signtool sign /sha1 $cert.Thumbprint flutter/build/windows/runner/Release/rustdesk.exe
-
-      - name: 改名 taotaodesk.exe
-        run: |
-          ren flutter/build/windows/runner/Release/rustdesk.exe taotaodesk.exe
+          ren flutter\build\windows\runner\Release\rustdesk.exe taotaodesk.exe
 
       - uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
-          path: flutter/build/windows/runner/Release
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: subosito/flutter-action@v2
-        with: { flutter-version: "3.22.3" }
-
-      - name: 编译
-        run: |
-          cd flutter
-          flutter pub get
-          flutter build macos --release
-
-      - name: 签名
-        run: |
-          codesign --force --deep --sign - flutter/build/macos/Build/Products/Release/RustDesk.app
-
-      - name: 改名 TaotaoDesk.app
-        run: |
-          mv flutter/build/macos/Build/Products/Release/RustDesk.app flutter/build/macos/Build/Products/Release/TaotaoDesk.app
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: taotaodesk-macos
-          path: flutter/build/macos/Build/Products/Release
+          path: flutter\build\windows\runner\Release
