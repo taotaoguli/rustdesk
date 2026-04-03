@@ -17,27 +17,27 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with: { flutter-version: "3.22.3" }
+        uses: subosito/flutter-action@v4
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
 
-      - name: Build Windows
+      - name: Build
         run: |
           cd flutter
           flutter pub get
-          cargo build --release --features with_flutter
           flutter build windows --release
 
-      - name: Sign EXE
+      - name: Sign
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           signtool sign /sha1 $cert.Thumbprint flutter/build/windows/runner/Release/rustdesk.exe
 
-      - name: Rename to taotaodesk
+      - name: Rename
         run: |
           ren flutter/build/windows/runner/Release/rustdesk.exe taotaodesk.exe
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
           path: flutter/build/windows/runner/Release
@@ -52,26 +52,26 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with: { flutter-version: "3.22.3" }
+        uses: subosito/flutter-action@v4
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
 
-      - name: Build macOS
+      - name: Build
         run: |
           cd flutter
           flutter pub get
-          cargo build --release --features with_flutter
           flutter build macos --release
 
       - name: Sign
         run: |
           codesign --force --deep --sign - flutter/build/macos/Build/Products/Release/RustDesk.app
 
-      - name: Rename App
+      - name: Rename
         run: |
           mv flutter/build/macos/Build/Products/Release/RustDesk.app flutter/build/macos/Build/Products/Release/TaotaoDesk.app
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
           path: flutter/build/macos/Build/Products/Release
