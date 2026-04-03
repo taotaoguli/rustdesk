@@ -1,48 +1,80 @@
-name: TaotaoDesk
+name: Build TaotaoDesk (Auto Sign & Rename)
+
 on:
-  workflow_dispatch:
+  workflow_dispatch:    # 手动点一下就编译
+  push:
+    branches: [main]
 
 jobs:
-  windows:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.16.0"
-      - run: |
-          cd flutter
-          flutter pub get
-          flutter build windows --release
-      - run: ren flutter\build\windows\runner\Release\rustdesk.exe taotaodesk.exe
-      - run: |
-          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk"
-          signtool sign /sha1 $cert.Thumbprint flutter\build\windows\runner\Release\taotaodesk.exe
-      - uses: actions/upload-artifact@v4
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rename to taotaodesk.exe
+        run: |
+          (Get-Content libs/hbb_common/src/consts.rs) -replace 'rustdesk','taotaodesk' -replace 'RustDesk','TaotaoDesk' | Set-Content libs/hbb_common/src/consts.rs
+          (Get-Content src/win/resource.rc) -replace 'rustdesk','taotaodesk' -replace 'RustDesk','TaotaoDesk' | Set-Content src/win/resource.rc
+
+      - name: Disable official servers (LAN only)
+        run: |
+          (Get-Content libs/hbb_common/src/consts.rs) -replace 'DEFAULT_RELAY_SERVER.*','pub const DEFAULT_RELAY_SERVER: &str = "";' | Set-Content libs/hbb_common/src/consts.rs
+          (Get-Content libs/hbb_common/src/consts.rs) -replace 'DEFAULT_RENDEZVOUS_SERVER.*','pub const DEFAULT_RENDEZVOUS_SERVER: &str = "";' | Set-Content libs/hbb_common/src/consts.rs
+
+      - name: Build Release
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Rename final exe
+        run: move target/release/rustdesk.exe target/release/taotaodesk.exe
+
+      - name: Sign EXE (CN=TaotaoDesk)
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation "Cert:\CurrentUser\My"
+          $thumbprint = $cert.Thumbprint
+          Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate (Get-ChildItem "Cert:\CurrentUser\My\$thumbprint") -TimestampServer http://timestamp.digicert.com
+
+      - name: Upload Windows Build
+        uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-windows
-          path: flutter\build\windows\runner\Release
+          path: target/release/taotaodesk.exe
 
-  macos:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.16.0"
-      - run: |
-          cd flutter
-          flutter pub get
-          flutter build macos --release
-      - run: mv flutter/build/macos/Build/Products/Release/RustDesk.app flutter/build/macos/Build/Products/Release/TaotaoDesk.app
-      - run: codesign --force --deep --sign - flutter/build/macos/Build/Products/Release/TaotaoDesk.app
-      - uses: actions/upload-artifact@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rename to taotaodesk
+        run: |
+          sed -i '' 's/rustdesk/taotaodesk/g' libs/hbb_common/src/consts.rs
+          sed -i '' 's/RustDesk/TaotaoDesk/g' libs/hbb_common/src/consts.rs
+
+      - name: Disable official servers (LAN only)
+        run: |
+          sed -i '' 's/DEFAULT_RELAY_SERVER.*/pub const DEFAULT_RELAY_SERVER: \&str = "";/' libs/hbb_common/src/consts.rs
+          sed -i '' 's/DEFAULT_RENDEZVOUS_SERVER.*/pub const DEFAULT_RENDEZVOUS_SERVER: \&str = "";/' libs/hbb_common/src/consts.rs
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Rename binary
+        run: mv target/release/rustdesk target/release/taotaodesk
+
+      - name: Sign macOS (CN=TaotaoDesk)
+        run: |
+          security import <(openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/key.pem -out /tmp/cert.pem -subj "/CN=TaotaoDesk" -days 3650) -k /tmp/sign.keychain -A
+          codesign -s "CN=TaotaoDesk" --force --deep target/release/taotaodesk
+
+      - name: Upload macOS Build
+        uses: actions/upload-artifact@v4
         with:
           name: taotaodesk-macos
-          path: flutter/build/macos/Build/Products/Release
+          path: target/release/taotaodesk
