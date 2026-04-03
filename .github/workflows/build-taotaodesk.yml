@@ -4,7 +4,7 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
       # 必开：拉取所有子模块 libs/scrap + libs/hbb_common
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
           path: target/release/taotaodesk.exe
 
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       # 必开：拉取所有子模块 libs/scrap + libs/hbb_common
       - uses: actions/checkout@v4
