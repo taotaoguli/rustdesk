@@ -1,39 +1,30 @@
-name: Build TaotaoDesk (LAN Only)
+name: Build TaotaoDesk (GUI 正常)
 
 on:
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with: { submodules: recursive }
+        with: submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "3.22.3" }
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.13.0"
-          channel: "stable"
-
-      - name: Build
+      - name: 编译
         run: |
           cd flutter
           flutter pub get
           flutter build windows --release
 
-      - name: Sign EXE
+      - name: 签名
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
           signtool sign /sha1 $cert.Thumbprint flutter/build/windows/runner/Release/rustdesk.exe
 
-      - name: Rename to taotaodesk.exe
+      - name: 改名 taotaodesk.exe
         run: |
           ren flutter/build/windows/runner/Release/rustdesk.exe taotaodesk.exe
 
@@ -46,28 +37,22 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with: { submodules: recursive }
+        with: submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "3.22.3" }
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.13.0"
-          channel: "stable"
-
-      - name: Build
+      - name: 编译
         run: |
           cd flutter
           flutter pub get
           flutter build macos --release
 
-      - name: Sign
+      - name: 签名
         run: |
           codesign --force --deep --sign - flutter/build/macos/Build/Products/Release/RustDesk.app
 
-      - name: Rename to TaotaoDesk
+      - name: 改名 TaotaoDesk.app
         run: |
           mv flutter/build/macos/Build/Products/Release/RustDesk.app flutter/build/macos/Build/Products/Release/TaotaoDesk.app
 
