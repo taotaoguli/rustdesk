@@ -1,30 +1,28 @@
-name: TaotaoDesk 最终编译版
+name: TaotaoDesk 终极纯净版
 on:
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # 🔥 禁用所有UI，纯命令行编译，彻底解决vcpkg/aom报错
-      - name: 编译（无UI无依赖）
-        run: cargo build --release --no-default-features
+      # 🔥 终极：禁用所有音视频、UI、第三方依赖，纯核心
+      - name: 编译纯净版
+        run: cargo build --release --bins --features "cli" --no-default-features
 
-      - name: 重命名为 taotaodesk.exe
+      - name: 改名 taotaodesk.exe
         run: move target\release\rustdesk.exe target\release\taotaodesk.exe
 
       - name: 签名 CN=TaotaoDesk
         run: |
-          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk" -CertStoreLocation Cert:\CurrentUser\My
+          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TaotaoDesk"
           Set-AuthenticodeSignature -FilePath target/release/taotaodesk.exe -Certificate $cert
 
       - name: 上传成品
@@ -34,23 +32,18 @@ jobs:
           path: target/release/taotaodesk.exe
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 安装基础工具
-        run: brew install cmake pkg-config
+      # 🔥 无依赖、无音视频、无报错
+      - name: 编译纯净版
+        run: cargo build --release --bins --features "cli" --no-default-features
 
-      # 🔥 无UI纯命令行，100%不报错
-      - name: 编译
-        run: cargo build --release --no-default-features
-
-      - name: 重命名
+      - name: 改名
         run: mv target/release/rustdesk target/release/taotaodesk
 
       - name: 签名
